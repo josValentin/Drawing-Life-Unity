@@ -52,7 +52,7 @@ public class PictureProcessor : MonoBehaviour
         using (UnityWebRequest request = UnityWebRequest.Post(AppConstants.ProcessImageUrl, form))
         {
             request.downloadHandler = new DownloadHandlerBuffer();
-            request.timeout = 30;
+            request.timeout = 60;
             await request.SendWebRequest();
 
             if (request.result != UnityWebRequest.Result.Success)

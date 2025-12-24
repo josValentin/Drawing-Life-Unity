@@ -1,3 +1,5 @@
+using DG.Tweening;
+using System;
 using System.Collections;
 using UnityEngine;
 using UnityEngine.Events;
@@ -5,10 +7,10 @@ using UnityEngine.UI;
 
 public class PhotoTaker : MonoBehaviour
 {
-    [SerializeField] private Button btnTakePhoto, btnTryAgain, btnAccept, btnCancel;
     [SerializeField] private GameObject onPhotoTakenGo, onTakingPhotoGo;
     [SerializeField] private RawImage camRenderer;
-
+    [SerializeField] private Image imgBlocker;
+    [SerializeField] private PopupWindow winSettingsPopup;
     [field: SerializeField] public UnityEvent<Texture2D> onPhotoSelected;
     [field: SerializeField] public UnityEvent onCancel;
 
@@ -16,13 +18,7 @@ public class PhotoTaker : MonoBehaviour
 
     private Texture2D photoTaken;
     [SerializeField] private AspectRatioFitter fitter;
-    private void Awake()
-    {
-        btnTakePhoto.onClick.AddListener(TakePhoto);
-        btnAccept.onClick.AddListener(Accept);
-        btnCancel.onClick.AddListener(Cancel);
-        btnTryAgain.onClick.AddListener(TryAgain);
-    }
+
 
     private void OnEnable()
     {
@@ -33,6 +29,8 @@ public class PhotoTaker : MonoBehaviour
     public void StartCamera()
     {
         gameObject.SetActive(true);
+        imgBlocker.SetActiveGo(true);
+        imgBlocker.SetAlpha(1);
         StartCoroutine(IStartCamera());
     }
 
@@ -67,7 +65,19 @@ public class PhotoTaker : MonoBehaviour
 #elif UNITY_STANDALONE || UNITY_EDITOR
 
             yield return new WaitForSeconds(0.5f);
-            yield return new WaitUntil(() => WebCamTexture.devices.Length > 0);
+
+            bool hasAccess = true;
+            yield return new WaitUntil(() => WebCamTexture.devices.Length > 0, TimeSpan.FromSeconds(5), () =>
+            {
+                Debug.LogError("No se encontraron cámaras en el sistema");
+                hasAccess = false;
+            });
+
+            if (!hasAccess)
+            {
+                winSettingsPopup.Show();
+                yield break;
+            }
 
             foreach (var device in WebCamTexture.devices)
             {
@@ -80,15 +90,42 @@ public class PhotoTaker : MonoBehaviour
 
             if (webCamTex == null)
             {
-                Debug.LogWarning("No forward camera found, using any default");
-                webCamTex = new WebCamTexture(4096, 4096, 144);
+                Debug.LogWarning($"No forward camera found, using any default (count: {WebCamTexture.devices.Length})");
+                webCamTex = new WebCamTexture(WebCamTexture.devices[0].name, 4096, 4096, 144);
             }
 #endif
             // Start the camera
             camRenderer.texture = webCamTex;
         }
 
+
         webCamTex.Play();
+        yield return CheckCameraStarted();
+    }
+
+
+    IEnumerator CheckCameraStarted()
+    {
+        yield return new WaitForSeconds(1f);
+
+        if (!webCamTex.isPlaying || webCamTex.width <= 16)
+        {
+            Debug.LogError("No se pudo iniciar la cámara");
+            webCamTex = null;
+            winSettingsPopup.Show();
+            yield break;
+        }
+
+        imgBlocker.DOFade(0, 0.5f).OnComplete(() => imgBlocker.SetActiveGo(false));
+    }
+
+    public static void OpenCameraPrivacySettings()
+    {
+        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+        {
+            FileName = "ms-settings:privacy-webcam",
+            UseShellExecute = true
+        });
     }
 
     void Update()
@@ -151,14 +188,14 @@ public class PhotoTaker : MonoBehaviour
         //#endif
     }
 
-    private void Accept()
+    public void Accept()
     {
         StopCamera();
         onPhotoSelected.Invoke(photoTaken);
         gameObject.SetActive(false);
     }
 
-    private void Cancel()
+    public void Cancel()
     {
         if (webCamTex != null)
             StopCamera();
@@ -171,7 +208,7 @@ public class PhotoTaker : MonoBehaviour
         webCamTex.Stop();
     }
 
-    private void TryAgain()
+    public void TryAgain()
     {
         webCamTex.Play();
 
@@ -180,7 +217,7 @@ public class PhotoTaker : MonoBehaviour
         onPhotoTakenGo.SetActive(false);
     }
 
-    private void TakePhoto()
+    public void TakePhoto()
     {
         webCamTex.Pause();
         photoTaken = new(
