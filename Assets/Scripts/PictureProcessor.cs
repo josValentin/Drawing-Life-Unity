@@ -42,7 +42,7 @@ public class PictureProcessor : MonoBehaviour
 
     public async Task<(Texture2D result, string key, string error)> ProcessImage(Texture2D texture)
     {
-        byte[] imageBytes = texture.EncodeToPNG();
+        byte[] imageBytes = texture.EncodeToJPG(80);
 
         WWWForm form = new();
         form.AddBinaryData("image", imageBytes, "paper.png", "image/png");

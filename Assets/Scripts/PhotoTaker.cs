@@ -81,6 +81,7 @@ public class PhotoTaker : MonoBehaviour
 
             foreach (var device in WebCamTexture.devices)
             {
+                Debug.Log(device.name);
                 if (!device.isFrontFacing)
                 {
                     webCamTex = new WebCamTexture(device.name, 4096, 4096, 144);
@@ -91,7 +92,7 @@ public class PhotoTaker : MonoBehaviour
             if (webCamTex == null)
             {
                 Debug.LogWarning($"No forward camera found, using any default (count: {WebCamTexture.devices.Length})");
-                webCamTex = new WebCamTexture(WebCamTexture.devices[0].name, 4096, 4096, 144);
+                webCamTex = new WebCamTexture(WebCamTexture.devices[4].name, 4096, 4096, 144);
             }
 #endif
             // Start the camera
